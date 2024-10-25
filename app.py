@@ -19,11 +19,10 @@ class App:
 
         self.win.mainloop()
 
-    def change(self, n):
+    def change(self, n=0):
         self.body.destroy()
         match(n):
             case 1:
-                print("list page")
                 self.body = getListPage(self)
 
             case 2:
@@ -36,4 +35,5 @@ class App:
     def update_expense(self, id, category, title, amount, note):
         print(id, category, title, amount, note)
         self.change(1)
+
 app = App()

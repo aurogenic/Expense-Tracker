@@ -2,16 +2,21 @@ from constants import *
 import math
 from customtkinter import *
 from PIL import Image
+from expenses import *
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from tkcalendar import Calendar
 
 UNIT = "$"
 LIMITS = [150, 1200.00, 4500.00]
-TOTALS = [140, 1401.00, 2410]
 
-CATEGORIES = ["Food and Snacks", "Shopping and Clothing", "Mediacl and Healthcar", "Utilities", "Rent and Recharges", "Miscellaneous"]
+today = datetime.now().date()
+expenses = load_expenses()
+TODAYTOT = total(expenses_by_day(expenses))
+WEEKTOT = total(expenses_by_week(expenses))
+MONTHTOT = total(expenses_by_month(expenses))
 
-TODAYTOT = 0
-WEEKTOT = 0
-MONTHTOT = 0
+TOTALS = [TODAYTOT, MONTHTOT, MONTHTOT]
 
 
 validate_num = None
@@ -19,7 +24,6 @@ validate_hrs = None
 validate_mins = None
 
 
-#images referneces
 logo_img = CTkImage(Image.open("assets/logo.png"), size = (300, 50))
 config_logo_img = CTkImage(Image.open("assets/config.png"), size = (50, 50))
 
@@ -62,8 +66,9 @@ def get_navbar(app):
 
     return nav_bar
 
-
 def format (n, i=4, exact=False):
+    if not n:
+        return '0.00'
     i -= 1 if n < 0 else 0
     sign = '-' if n<0 else ''
     n = abs(n)
@@ -119,7 +124,7 @@ def small_sec(master, i, span):
     limit.pack(side="right", padx=5)
     return sec
 
-def add_expense_sec(master):
+def add_expense_sec(master, app):
     sec = CTkFrame(master, width=270, height=400, fg_color=sec_bg, corner_radius=24)
     sec.grid(row=3, column=1, sticky="nsew", padx=20, pady=20)
 
@@ -177,13 +182,14 @@ def add_expense_sec(master):
     nt = CTkTextbox(form, corner_radius=6, height=50, width=150)
     nt.grid(row=5, column=1, sticky="nsew", pady=7)
 
-    def get_values():
+    def add():
         category = cat.get()
         title = ttl.get()
-        amount = amnt.get()
-        time = hrs.get() + mins.get() + per.get()
+        amount = float(amnt.get())
+        time = hrs.get() + ":"+ mins.get() +" " + per.get()
         note = nt.get("1.0", "end")
-        print("category: ", category , "\ntitle: ", title, "\namount: ", amount, "\ntime: ", time, "\nNote: ", note)
+        add_expense(title, category, amount, time, note)
+        app.change()
 
     btn = CTkButton(form, text="Add Expense",
                     fg_color=dark_bg,
@@ -192,23 +198,57 @@ def add_expense_sec(master):
                     font=("Roboto bold", 16),
                     height=36,
                     hover_color="black",
-                    command = lambda: get_values())
+                    command = lambda: add())
     btn.grid(row=6, column=0, columnspan=2, sticky="nsew", pady=10, padx=5)
 
+def date_picker(master, funct, graph):
+    def select(top, calendar):
+        date_str=calendar.get_date()
+        top.destroy()
+        funct(date_str, graph)
+
+    top = CTkToplevel(master)
+    top.title("Select Date")
+
+    top.attributes("-topmost", True)
+    top.focus()
+    calendar = Calendar(top, selectmode="day", date_pattern="dd-mm-yyyy")
+    calendar.pack(pady=20)
+
+    btn = CTkButton(top, text="Select", fg_color=dark_bg, text_color="white",
+                    corner_radius=14, font=("Roboto bold", 16), height=36,
+                    hover_color="black", command=lambda: select(top, calendar))
+    btn.pack(pady=10)
+
+
+def add_pie(master, data):
+    sub = CTkFrame(master, fg_color="transparent")
+    sub.grid(row=2, column=0, columnspan=2, padx=7, pady=7, sticky="NSEW")
+    if(data):
+        fig = Figure(figsize = (1, 1), dpi=100, facecolor=sec_bg, layout="constrained")
+        plot = fig.add_subplot(111)
+        categories = data.keys()
+        amounts = data.values()
+        plot.pie(amounts, labels=categories, autopct='%1.1f%%', textprops={'color': 'White'} )
+
+        canvas = FigureCanvasTkAgg(fig, sub)
+        canvas.draw() 
+        canvas.get_tk_widget().pack(fill="both", expand=True)
+
+        canvas.get_tk_widget().bind("<Button-1>", show_pie_chart)
+    return sub
 
 def add_category_sec(master):
     sec = CTkFrame(master, width=270, height=400, fg_color=sec_bg, corner_radius=24)
     sec.grid(row=3, column=3, sticky="nsew", padx=20, pady=20)
-    sub =  CTkFrame(sec, fg_color="transparent", corner_radius=24,)
-    sub.pack(fill="both", expand=True, pady=7, padx=20)
 
-    title = CTkLabel(sub,
+    title = CTkLabel(sec,
                      text="Categories",
                      font=("Roboto bold", 24),
                      text_color="white")
-    title.grid(row=0, column=0, sticky="nsew", pady=5, columnspan=2)
+    title.grid(row=0, column=0, sticky="nsew", pady=7, padx=7, columnspan=2)
 
-    m1 = CTkOptionMenu(sub, values=["Daily", "Weekly", "Monthly"],
+    m1 = CTkOptionMenu(sec, values=["Monthly", "Weekly", "Daily"],
                         fg_color=dark_bg,
                         button_color=dark_bg,
                         button_hover_color=clr1,
@@ -216,25 +256,32 @@ def add_category_sec(master):
                         corner_radius=6, height=28, width=100)
     m1.grid(row = 1, column=0, sticky="nsew", pady=5, padx=10)
 
-    def get_range():
-        type = m1.get()
-        if type == "Daily":
-             return ['12-10-2024', '13-10-2024', '14-10-2024','15-10-2024','16-10-2024','17-10-2024','18-10-2024']
-        if type=="Weekly":
-            return ["01-07/10/24", "08-14/10/24", "15-21/10/24", "22-28/10/24"]
-        if type=="Monthly":
-            return [x+" 2024" for x in ["Jan", "Feb", "Oct", "Dec"]]
+    graph_sec = None
+    m2 = None
+    def update_graph(date_str, graph):
+        global graph_sec
+        date = datetime.strptime(date_str, "%d-%m-%Y").date()
+        m2.configure(text=str(date))
+        range_type = m1.get()
+        graph.destroy()
+        match(range_type):
+            case "Monthly":
+                data = expenses_by_month(expenses, date.year, date.month)
+            case "Weekly":
+                data = expenses_by_week(expenses, date)
+            case "Daily":
+                data = expenses_by_day(expenses, date)
+        data = category_total(data)
 
-    m2 = CTkOptionMenu(sub, values=get_range(),
-                        fg_color=dark_bg,
-                        button_color=dark_bg,
-                        button_hover_color=clr1,
-                        dropdown_hover_color=light_bg,
-                        corner_radius=6, height=28)
+        graph_sec = add_pie(sec, data)
+
+    m2 = CTkButton(sec, text=str(today), command= lambda: date_picker(sec, update_graph, graph_sec))
     m2.grid(row = 1, column=1, sticky="nsew", pady=5, padx=10)
+    graph_sec = add_pie(sec, category_total(expenses_by_month(expenses)))
 
-    sub.grid_columnconfigure(0, weight=1)
-    sub.grid_columnconfigure(1, weight=1)
+    sec.grid_columnconfigure(0, weight=1)
+    sec.grid_columnconfigure(1, weight=1)
+    sec.grid_rowconfigure(2, weight=50)
 
 def add_trend_sec(master):
     sec = CTkFrame(master, width=270, height=400, fg_color=sec_bg, corner_radius=24)
@@ -289,7 +336,7 @@ def getHome(app):
             empty =  CTkFrame(body, height=5, fg_color="transparent", width=0)
             empty.grid(row=i*2, column=0, sticky="nsew", padx=10)
 
-    add_expense_sec(body)
+    add_expense_sec(body, app)
     
     add_category_sec(body)
     
@@ -309,7 +356,6 @@ def getHome(app):
     body.pack(fill="both", expand=True)
 
     return body
-
 
 def init(win):
      

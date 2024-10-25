@@ -3,35 +3,10 @@ import math
 from customtkinter import *
 from PIL import Image
 from home import format, init
-
-CATEGORIES = ["Food and Snacks", "Shopping and Clothing", "Mediacl and Healthcar", "Utilities", "Rent and Recharges", "Miscellaneous"]
+from expenses import CATEGORIES, load_expenses, delete_expense, update_expense
 
 edit_btn_img = None
 UNIT = "$"
-EXPENSES = [
-    [0, "Prateek Birthday", "Miscellaneous", 100.00, "12/10/2024", "12:36 PM", "To celebrate Prateek's birthday, we went to Street Cafe where we all collectively bought a cake which cost 500 in total."],
-    [1, "Grocery Shopping", "Utilities", 150.25, "13/10/2024", "10:45 AM", "Bought groceries including vegetables, fruits, and other essentials for the week."],
-    [2, "Electricity Bill", "Utilities", 75.00, "14/10/2024", "03:20 PM", "Paid the monthly electricity bill for the apartment."],
-    [3, "Netflix Subscription", "Miscellaneous", 12.99, "14/10/2024", "07:15 PM", "Renewed the monthly Netflix subscription."],
-    [4, "Pharmacy Purchase", "Medical and Healthcare", 35.60, "15/10/2024", "11:30 AM", "Purchased medicines for a cold and cough from the local pharmacy."],
-    [5, "Mobile Recharge", "Rent and Recharges", 20.00, "15/10/2024", "09:00 PM", "Recharged the mobile with a monthly plan."],
-    [6, "Lunch at Cafe", "Food and Snacks", 45.00, "16/10/2024", "01:00 PM", "Had lunch with friends at the nearby cafe, shared a pizza and drinks."],
-    [7, "Winter Clothes Shopping", "Shopping and Clothing", 120.50, "16/10/2024", "05:45 PM", "Bought a winter jacket and a pair of gloves for the upcoming cold season."],
-    [8, "Doctor Consultation", "Medical and Healthcare", 50.00, "17/10/2024", "10:00 AM", "Visited the doctor for a routine check-up and consultation."],
-    [9, "Monthly Rent", "Rent and Recharges", 800.00, "17/10/2024", "11:00 AM", "Paid the rent for the apartment for the month of October."],
-    [10, "Bus Pass", "Utilities", 40.00, "18/10/2024", "08:30 AM", "Purchased a monthly bus pass for commuting to work."],
-    [11, "Snacks for Meeting", "Food and Snacks", 25.00, "18/10/2024", "03:00 PM", "Bought snacks for a team meeting at the office."],
-    [12, "New Shoes", "Shopping and Clothing", 60.00, "19/10/2024", "04:00 PM", "Purchased a pair of running shoes for daily exercise."],
-    [13, "Dentist Appointment", "Medical and Healthcare", 80.00, "19/10/2024", "10:30 AM", "Visited the dentist for a cleaning and a filling."],
-    [14, "Gas Bill", "Utilities", 30.00, "20/10/2024", "02:00 PM", "Paid the gas bill for the apartment."],
-    [15, "Dinner with Family", "Food and Snacks", 100.00, "20/10/2024", "07:00 PM", "Had a family dinner at a restaurant, shared various dishes."],
-    [16, "Laptop Repair", "Miscellaneous", 85.00, "21/10/2024", "01:45 PM", "Got the laptop repaired due to overheating issues."],
-    [17, "Clothing Sale", "Shopping and Clothing", 45.99, "22/10/2024", "12:15 PM", "Bought a few t-shirts and jeans during a sale."],
-    [18, "Water Bill", "Utilities", 25.00, "22/10/2024", "11:00 AM", "Paid the monthly water bill for the apartment."],
-    [19, "Birthday Gift for Friend", "Miscellaneous", 50.00, "23/10/2024", "06:30 PM", "Bought a gift for a friend's birthday, including a watch and a greeting card."],
-    [20, "Lunch at Work", "Food and Snacks", 15.50, "23/10/2024", "12:00 PM", "Had lunch at work with colleagues, ordered a sandwich and coffee."],
-    [21, "Monthly Gym Membership", "Miscellaneous", 40.00, "24/10/2024", "08:00 AM", "Paid for the gym membership for the month of October."],
-]
 
 
 def update(x):
@@ -40,6 +15,7 @@ def update(x):
 class EditWindow(CTkToplevel):
     def __init__(self, parent, expense):
         super().__init__(parent.win)
+        self.app = parent
         self.title("Edit Expense")
         self.geometry("350x370")
         self.resizable =[False, False]
@@ -97,38 +73,62 @@ class EditWindow(CTkToplevel):
         nt.insert("0.0", expense[-1])
         
 
-        def get_values():
+        def update():
             category = cat.get()
             title = ttl.get()
-            amount = amnt.get()
+            amount = amnt.get() if amnt.get() else expense[3]
             note = nt.get("1.0", "end")
-            parent.update_expense(expense[0], category, title, amount, note)
+            update_expense(expense[0], title, category, amount, note)
+            self.app.change()
+            self.destroy()
 
-        btn = CTkButton(form, text="Add Expense",
+        btn = CTkButton(form, text="Update",
                         fg_color=dark_bg,
                         text_color="white",
                         corner_radius=14,
                         font=("Roboto bold", 16),
                         height=36,
                         hover_color="black",
-                        command = lambda: get_values())
+                        command = lambda: update())
         btn.grid(row=5, column=0, columnspan=2, sticky="nsew", pady=10, padx=5)
 
-def Card(master, expense, app):
-        
+class DeleteConfirmwindow(CTkToplevel):
+    def __init__(self, frame: CTkFrame, app, id):
+        super().__init__(frame)
+        self.app = app
+        self.title("Edit Expense")
+        x = app.win.winfo_x()+ frame.winfo_x() + frame.winfo_width()//2 
+        y = app.win.winfo_y()+ frame.winfo_y() + frame.winfo_height()//2
+        self.geometry(f"100x60+{x}+{y}")
+        self.resizable =[False, False]
 
-    card = CTkFrame(master, fg_color=sec_bg, corner_radius=18)
+        self.attributes("-topmost", True)
+        self.focus()
+
+        self.configure(fg_color=sec_bg, corner_radius=24)
+        self.btn = CTkButton(self, text="Confirm Delete", text_color="red", fg_color="white", command=lambda: self.delete(id))
+        self.btn.pack(side='bottom', padx=10, pady=10)
+
+    def delete(self, i):
+        delete_expense(i)
+        self.app.change()
+        self.destroy()
+
+def Card(master, expense, app):
+    card = CTkFrame(master, fg_color=sec_bg, corner_radius=18, height=200)
     
     header = CTkFrame(card, fg_color="transparent")
-    header.pack(side="top",fill="x", padx=5, pady=3)
+    header.pack(side="top",fill="x", padx=6, pady=4)
 
-    time = CTkLabel(header, text_color="white", font=("Roboto", 12), text=expense[5])
+    time = CTkLabel(header, text_color="white", font=("Roboto", 12), text=expense[4].strftime("%I:%M %p"))
     time.pack(side="left", padx=10)
 
-    date = CTkLabel(header, text_color="white", font=("Roboto", 12), text=expense[4])
+    date = CTkLabel(header, text_color="white", font=("Roboto", 12), text=expense[4].date())
     date.pack(side="left", padx=10)
 
-    dlt_btn = CTkButton(header, width=16, text="X", font=("Roboto bold", 16),  fg_color="transparent", text_color="red", hover_color="white", border_spacing=0)
+    dlt_btn = CTkButton(header, width=16, text="X", font=("Roboto bold", 16),  fg_color="transparent",
+                        text_color="red", hover_color="white", border_spacing=0,
+                        command=lambda: DeleteConfirmwindow(card, app, expense[0]))
     dlt_btn.pack(side="right")
 
     edit_btn = CTkButton(header, image=edit_btn_img, text="", fg_color="transparent",
@@ -136,12 +136,12 @@ def Card(master, expense, app):
     edit_btn.pack(side="right")
 
 
-    title = CTkLabel(card, font=("Roboto bold", 20), text_color='white', text=expense[1])
+    title = CTkLabel(card, font=("Roboto bold", 20), text_color='white', text=expense[1][:20])
     title.pack(side="top")
 
-    note = CTkLabel(card, font=("Roboto bold", 10), text_color="white",
-                    anchor="center", justify="center",text=expense[6], wraplength=160)
-    note.pack(fill="y", expand=True, pady=0)
+    note = CTkLabel(card, font=("Roboto", 10), text_color="gray",
+                    anchor="w", justify="left",text=expense[5], wraplength=180)
+    note.pack(fill="both", expand=True, pady=2, padx=14)
 
     amnt = CTkLabel(card, font=("Roboto bold", 25),  text_color="white", text=UNIT+format(expense[3], 9))
     amnt.pack()
@@ -152,9 +152,8 @@ def Card(master, expense, app):
 
 def getListPage(app):
     global edit_btn_img, win
+    EXPENSES = load_expenses()
     edit_btn_img = CTkImage(Image.open("assets/edit.png"), size=(16, 16))
-
-    
 
     COLS = 5
     body = CTkFrame(app.win, fg_color="transparent", corner_radius=0)
@@ -176,5 +175,5 @@ def getListPage(app):
     sec.grid_columnconfigure(list(range(COLS*2+1)), weight=1)
     sec.grid_columnconfigure([x*2+1 for x in range(COLS)], weight=0, minsize=280)
 
-    sec.grid_rowconfigure(list(range(len(EXPENSES)//COLS + 1)), minsize=300, weight=1)
+    sec.grid_rowconfigure(list(range(len(EXPENSES)//COLS + 1)), minsize=150, weight=1)
     return body
