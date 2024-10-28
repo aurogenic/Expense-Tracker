@@ -2,12 +2,12 @@ import sqlite3
 from datetime import datetime
 import csv
 import matplotlib.pyplot as plt
+from constants import *
 
 
 CATEGORIES = ["Others", "Food and Snacks", "Shopping and Clothing", "Medical and Healthcar", "Utilities", "Rent and Recharges", "Miscellaneous"]
 
 
-# Database setup
 def create_table():
     conn = sqlite3.connect('expenses.db')
     cursor = conn.cursor()
@@ -24,7 +24,6 @@ def create_table():
     conn.commit()
     conn.close()
 
-# Add expense to database
 def add_expense(title, category, amount, time, note):
 
     time = datetime.now().strftime('%Y-%m-%d') + "::" + time
@@ -37,7 +36,6 @@ def add_expense(title, category, amount, time, note):
     conn.close()
     load_expenses()
 
-# Load and display expenses from the database
 def load_expenses():
     conn = sqlite3.connect('expenses.db')
     cursor = conn.cursor()
@@ -88,33 +86,6 @@ def category_wise():
         conn.close()
         return []
 
-def show_bar_chart(event=None):
-        results = category_wise()
-        if results:
-            categories = [row[0] for row in results]
-            amounts = [row[1] for row in results]
-
-            plt.bar(categories, amounts)
-            plt.xlabel('Category')
-            plt.ylabel('Amount')
-            plt.title('Spending by Category')
-            plt.show()
-        else:
-            print("No data available for visualization.")
-
-def show_pie_chart(event=None):
-    results = category_wise()
-    if results:
-        categories = [row[0] for row in results]
-        amounts = [row[1] for row in results]
-        plt.fill()
-        plt.pie(amounts, labels=categories, autopct='%1.1f%%')
-        plt.title('Expenses by Category')
-        plt.show()
-    else:
-        print("No data available for visualization.")
-
-
 def expenses_by_day(expenses, day=datetime.now().date()):
     return [exp for exp in expenses if exp[4].date() == day]
 
@@ -141,3 +112,55 @@ def category_total(data):
         result[exp[2]] += exp[3]
     return result
 
+def timeperiod_total(expenses, period="Weekly"):
+    result = defaultdict(float)
+
+    for exp in expenses:
+        date = exp[4]
+
+        if period == "Daily":
+            key = date.date()
+        elif period == "Weekly":
+            key = date.isocalendar()[1]
+        elif period == "Monthly":
+            key = (date.year, date.month)
+        else:
+            raise ValueError("Invalid period")
+        
+        result[key] += exp[3]
+    return result
+
+def show_bar_chart(data, period="Weekly"):
+    if data:
+        if (period=="Daily"):
+            labels = [date.strftime("%Y-%m-%d") for date in data.keys()]
+        elif (period=="Weekly"):
+            labels = [f"Week {week}" for week in data.keys()]
+        elif period=="Monthly":
+            labels = [f"{year}-{month:02d}" for year, month in data.keys()]
+        values = list(data.values())
+
+
+        plt.bar(labels, values, color=sec_bg)
+        plt.ylabel('Expenses')
+        plt.title(f"{period} Expenditure", fontsize=20, pad=5)
+        plt.figtext(0.05, .90, f"Total: {sum(values)}", fontsize=15, color="darkblue")
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("No data available for visualization.")
+
+def show_pie_chart(data=category_total(load_expenses()), title='Expenses'):
+    if(data):
+        categories = data.keys()
+        amounts = data.values()
+        plt.fill()
+        plt.pie(amounts, labels=categories, autopct='%1.1f%%', textprops={'color': 'White'} )
+        plt.title(title, fontsize=20, pad=5)
+        plt.figtext(0.05, .90, f"Total: {sum(amounts)}", fontsize=15, color="darkblue")
+        plt.tight_layout()
+        plt.legend(loc='lower right')
+        plt.show()
+
+exp = load_expenses()

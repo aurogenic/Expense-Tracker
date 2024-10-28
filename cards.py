@@ -2,7 +2,7 @@ from constants import *
 import math
 from customtkinter import *
 from PIL import Image
-from home import format, init
+from home import format, init, refresh
 from expenses import CATEGORIES, load_expenses, delete_expense, update_expense
 
 edit_btn_img = None
@@ -79,6 +79,7 @@ class EditWindow(CTkToplevel):
             amount = amnt.get() if amnt.get() else expense[3]
             note = nt.get("1.0", "end")
             update_expense(expense[0], title, category, amount, note)
+            refresh()
             self.app.change()
             self.destroy()
 
@@ -111,6 +112,7 @@ class DeleteConfirmwindow(CTkToplevel):
 
     def delete(self, i):
         delete_expense(i)
+        refresh()
         self.app.change()
         self.destroy()
 
