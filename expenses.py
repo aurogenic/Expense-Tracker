@@ -118,14 +118,12 @@ def timeperiod_total(expenses, period="Weekly"):
     for exp in expenses:
         date = exp[4]
 
-        if period == "Daily":
-            key = date.date()
-        elif period == "Weekly":
+        if period == "Weekly":
             key = date.isocalendar()[1]
         elif period == "Monthly":
             key = (date.year, date.month)
         else:
-            raise ValueError("Invalid period")
+            key = date.date()
         
         result[key] += exp[3]
     return result
@@ -163,4 +161,5 @@ def show_pie_chart(data=category_total(load_expenses()), title='Expenses'):
         plt.legend(loc='lower right')
         plt.show()
 
+create_table()
 exp = load_expenses()

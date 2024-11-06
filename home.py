@@ -213,183 +213,172 @@ def add_expense_sec(master, app):
     btn.grid(row=6, column=0, columnspan=2, sticky="nsew", pady=10, padx=5)
 
 
+class graph_section:
+    def __init__(self, frame, mode="categories", title="Categories"):
+        master = CTkFrame(frame,fg_color="transparent", corner_radius=24,)
+        master.pack(fill="both", expand=True, pady=7, padx=20)
+        
+        self.title = CTkLabel(master,
+                        text=title,
+                        font=("Roboto bold", 24),
+                        text_color="white")
+        self.title.grid(row=0, sticky="new", pady=5)
 
-def date_picker(master, funct, graph):
-    def select(top, calendar:Calendar):
-        date_str=calendar.get_date()
-        top.destroy()
-        funct(date_str, graph)
+        self.head = CTkFrame(master, fg_color="transparent")
+        self.head.grid(row=1,  sticky="new",  pady=7)
+        self.head.grid_columnconfigure(1, weight=1)
 
-    top = CTkToplevel(master, fg_color=sec_bg)
-    top.title("Select Date")
-    top.geometry("300x300")
-    top.attributes("-topmost", True)
-    top.focus()
-    calendar = Calendar(top, selectmode="day", date_pattern="dd-mm-yyyy", maxdate=datetime.now(), 
-                        selectbackground = light_bg, disabledbackground = dark_bg, weekendforeground = "tomato", width=400)
-    calendar.pack(fill="both", expand=True, pady=15, padx=15)
+        self.body = CTkFrame(master, fg_color="transparent")
+        self.body.grid(row=2, sticky="nsew",  pady=7)
 
-    btn = CTkButton(top, text="Select", fg_color=dark_bg, text_color="white",
-                    corner_radius=14, font=("Roboto bold", 16), height=36,
-                    hover_color="black", command=lambda: select(top, calendar))
-    btn.pack(pady=10)
+        master.grid_columnconfigure(0, weight=1)
 
-def add_pie(master, data, range_type, date1, date2=None):
-    match(range_type):
-        case 'Daily':
-            lbl = date1.strftime("Day: %b-%d-%Y")
-        case 'Monthly':
-            lbl = date1.strftime("Month: %B")
-        case 'Weekly':
-            lbl = date1.strftime("Week: %U %Y")
-        case Range:
-            lbl = date1.strftime("From: %b-%d-%Y   ") + date2.strftime("To: %b-%d-%Y")
+        self.type_picker = CTkOptionMenu(self.head, values=["Monthly", "Weekly", "Daily", "Range"], fg_color=dark_bg,
+                    button_color=dark_bg, button_hover_color=clr1, dropdown_hover_color=light_bg,
+                corner_radius=6, height=28, width=100, command=self.select_range)
+        self.type_picker.grid(row=0, column=0, sticky="nsew", pady=10)
 
-    data = category_total(data)
-    sub = CTkFrame(master, fg_color="transparent")
-    sub.grid(row=2, column=0, columnspan=2, padx=7, pady=7, sticky="NSEW")
-    if(data):
-        fig = Figure(figsize = (1, 1), dpi=100, facecolor=sec_bg, layout="constrained")
-        plot = fig.add_subplot(111)
-        categories = data.keys()
-        amounts = data.values()
-        plot.pie(amounts, labels=categories, autopct='%1.1f%%', textprops={'color': 'White'} )
-        canvas = FigureCanvasTkAgg(fig, sub)
-        canvas.draw() 
-        canvas.get_tk_widget().pack(fill="both", expand=True)
+        self.range_picker = CTkFrame(self.head, fg_color="transparent",width=100)
+        self.range_picker.grid(row=0, column=2, pady=10, sticky="nsew")
 
-        canvas.get_tk_widget().bind("<Button-1>", lambda event: show_pie_chart(data, lbl))
-    return sub
+        self.from_date = datetime.now().date()
+        self.to_date = datetime.now().date()
+        self.selected_date = datetime.now().date()
 
+        self.from_btn = CTkButton(self.range_picker, text='from', width=50,
+                fg_color=dark_bg, hover_color="black", height=28,
+                command= lambda: self.date_picker(self.set_from_date))
+        self.from_btn.pack(side="left", fill='x', expand=True, padx=10)
 
+        self.to_btn = CTkButton(self.range_picker, text='to', width=50,
+                        fg_color=dark_bg, hover_color="black", height=28,
+                        command= lambda: self.date_picker(self.set_to_date))
+        self.to_btn.pack(side="right", fill='x', expand=True)
+        
+        self.date_picker_btn = CTkButton(self.head, text=str(today),
+                    fg_color=dark_bg, hover_color="black", height=28,
+                    command= lambda: self.date_picker(self.select_date))
+        self.date_picker_btn.grid(row=0, column=2, pady=10, sticky="nsew")
 
+        self.graph_func = self.pie if mode == 'categories' else self.bar
+        self.graph_func()
 
+    def select_range(self,  type_):
+        if type_ == 'Range':
+            self.range_picker.tkraise()
+        else:
+            self.date_picker_btn.tkraise()
 
-from_date = datetime.now().date()
-to_date = datetime.now().date()
+    def set_from_date(self, date_str):
+        self.from_date = datetime.strptime(date_str, "%d-%m-%Y").date()
+        self.graph_func()
+
+    def set_to_date(self, date_str):
+        self.to_date = datetime.strptime(date_str, "%d-%m-%Y").date()
+        self.graph_func()
+    
+    def select_date(self, date_str):
+        self.selected_date = datetime.strptime(date_str, "%d-%m-%Y").date()
+        self.graph_func()
+
+    def date_picker(self, funct):
+        def select(top, date_str):
+            top.destroy()
+            funct(date_str)
+
+        top = CTkToplevel(self.head, fg_color=sec_bg)
+        top.title("Select Date")
+        top.geometry("300x300")
+        top.attributes("-topmost", True)
+        top.focus()
+        calendar = Calendar(top, selectmode="day", date_pattern="dd-mm-yyyy", maxdate=datetime.now(), 
+                            selectbackground = light_bg, disabledbackground = dark_bg, weekendforeground = "tomato", width=400)
+        calendar.pack(fill="both", expand=True, pady=15, padx=15)
+
+        btn = CTkButton(top, text="Select", fg_color=dark_bg, text_color="white",
+                        corner_radius=14, font=("Roboto bold", 16), height=36,
+                        hover_color="black", command=lambda: select(top, calendar.get_date()))
+        btn.pack(pady=10)
+
+    def pie(self):
+        data = None
+        match(self.type_picker.get()):
+            case 'Daily':
+                lbl = self.selected_date .strftime("Day: %b-%d-%Y")
+                data = expenses_by_day(expenses, self.selected_date)
+            case 'Monthly':
+                lbl = self.selected_date .strftime("Month: %B")
+                data = expenses_by_month(expenses, self.selected_date.year, self.selected_date.month)
+            case 'Weekly':
+                lbl = self.selected_date .strftime("Week: %U %Y")
+                data = expenses_by_week(expenses, self.selected_date)
+            case 'Range':
+                lbl = self.from_date.strftime("From: %b-%d-%Y   ") + self.to_date.strftime("To: %b-%d-%Y")
+                data = expenses_between_days(expenses, self.from_date, self.to_date)
+
+        data = category_total(data)
+        self.graph = CTkFrame(self.body, fg_color="transparent")
+        self.graph.grid(row=2, column=0, columnspan=2, padx=7, pady=7, sticky="NSEW")
+        if(data):
+            fig = Figure(figsize = (3, 3), dpi=100, facecolor=sec_bg, layout="constrained")
+            plot = fig.add_subplot(111)
+            categories = data.keys()
+            amounts = data.values()
+            plot.pie(amounts, labels=categories, autopct='%1.1f%%', textprops={'color': 'White'} )
+            canvas = FigureCanvasTkAgg(fig, self.graph)
+            canvas.draw() 
+            canvas.get_tk_widget().pack(fill="both", expand=True)
+
+            canvas.get_tk_widget().bind("<Button-1>", lambda event: show_pie_chart(data, lbl))
+
+    def bar(self):
+        data = None
+        match(self.type_picker.get()):
+            case 'Daily':
+                data = timeperiod_total(expenses_by_week(expenses, self.selected_date), 'Daily')
+                labels = [date.strftime("%Y-%m-%d") for date in data.keys()]
+            case 'Monthly':
+                data = timeperiod_total(expenses, 'Monthly')
+                labels = [f"{year}-{month:02d}" for year, month in data.keys()]
+            case 'Weekly':
+                data = timeperiod_total(expenses_by_month(expenses, self.selected_date.year, self.selected_date.month), 'Weekly')
+                labels = [f"Week {week}" for week in data.keys()]
+            case 'Range':
+                data = timeperiod_total(expenses_between_days(expenses, self.from_date, self.to_date), 'Daily')
+                labels = [date.strftime("%Y-%m-%d") for date in data.keys()]
+
+        self.graph = CTkFrame(self.body, fg_color="transparent")
+        self.graph.grid(row=2, column=0, columnspan=2, padx=7, pady=7, sticky="NSEW")
+        if(data):
+            fig = Figure(figsize = (3, 3), dpi=100, facecolor=sec_bg, layout="constrained")
+            plot = fig.add_subplot(111)
+            amounts = data.values()
+
+            plot.bar(labels, amounts, color=sec_bg)
+            plot.yaxis.axis_name = "Expenses"
+            # plot.ylabel('Expenses')
+            # plot.tight_layout()
+
+            canvas = FigureCanvasTkAgg(fig, self.graph)
+            canvas.draw() 
+            canvas.get_tk_widget().pack(fill="both", expand=True)
+
+            canvas.get_tk_widget().bind("<Button-1>", lambda event: show_bar_chart(data, self.type_picker.get()))
+
 
 def add_category_sec(master):
     sec = CTkFrame(master, width=270, height=400, fg_color=sec_bg, corner_radius=24)
     sec.grid(row=3, column=3, sticky="nsew", padx=20, pady=20)
 
-    title = CTkLabel(sec,
-                     text="Categories",
-                     font=("Roboto bold", 24),
-                     text_color="white")
-    title.grid(row=0, column=0, sticky="nsew", pady=7, padx=7, columnspan=2)
+    graph_sec = graph_section(sec, 'categories', title="Categories")
 
-    graph_sec = None
-    m2 = None
-
-    range_sec = CTkFrame(sec, fg_color="transparent")
-    range_sec.grid(row = 1, column=1, sticky="nsew", pady=5, padx=10)
-
-    def update_range_graph(graph):
-        data = expenses_between_days(expenses, from_date, to_date)
-        graph.destroy()
-        graph_sec = add_pie(sec, data, "Range", from_date, to_date)
-
-    def set_from(date_str, graph):
-        global from_date
-        print(date_str)
-        from_date = datetime.strptime(date_str, "%d-%m-%Y").date()
-        update_range_graph(graph)
-
-    def set_to(date_str, graph):
-        global to_date
-        to_date = datetime.strptime(date_str, "%d-%m-%Y").date()
-        update_range_graph(graph)
-
-    from_btn = CTkButton(range_sec, text='from', width=50,
-                   fg_color=dark_bg, hover_color="black", height=28,
-                   command= lambda: date_picker(sec, set_from, graph_sec))
-    from_btn.pack(side="left", fill='x', expand=True, padx=10)
-
-    to_btn = CTkButton(range_sec, text='to', width=50,
-                   fg_color=dark_bg, hover_color="black", height=28,
-                   command= lambda: date_picker(sec, set_to, graph_sec))
-    to_btn.pack(side="right", fill='x', expand=True)
-
-
-    def update_graph(date_str, graph):
-        global graph_sec
-        date = datetime.strptime(date_str, "%d-%m-%Y").date()
-        m2.configure(text=str(date))
-        range_type = m1.get()
-        graph.destroy()
-        match(range_type):
-            case "Monthly":
-                data = expenses_by_month(expenses, date.year, date.month)
-            case "Weekly":
-                data = expenses_by_week(expenses, date)
-            case "Daily":
-                data = expenses_by_day(expenses, date)
-
-        graph_sec = add_pie(sec, data, range_type, date)
-
-    m2 = CTkButton(sec, text=str(today),
-                   fg_color=dark_bg, hover_color="black", height=28,
-                   command= lambda: date_picker(sec, update_graph, graph_sec))
-    m2.grid(row = 1, column=1, sticky="nsew", pady=5, padx=10)
-
-
-    def switch_m2(m1_str):
-        if m1_str == 'Range':
-            range_sec.tkraise()
-        else:
-            m2.tkraise()
-
-    m1 = CTkOptionMenu(sec, values=["Monthly", "Weekly", "Daily", "Range"], fg_color=dark_bg,
-                       button_color=dark_bg, button_hover_color=clr1, dropdown_hover_color=light_bg,
-                    corner_radius=6, height=28, width=100, command=switch_m2)
-    m1.grid(row = 1, column=0, sticky="nsew", pady=5, padx=10)
-
-
-    graph_sec = add_pie(sec, expenses_by_month(expenses), "Monthly", today)
-
-    sec.grid_columnconfigure(0, weight=1)
-    sec.grid_columnconfigure(1, weight=1)
-    sec.grid_rowconfigure(2, weight=2)
 
 def add_trend_sec(master):
+    
     sec = CTkFrame(master, width=270, height=400, fg_color=sec_bg, corner_radius=24)
     sec.grid(row=3, column=5, sticky="nsew", padx=20, pady=20)
-    sub =  CTkFrame(sec, fg_color="transparent", corner_radius=24,)
-    sub.pack(fill="both", expand=True, pady=7, padx=20)
 
-    title = CTkLabel(sub,
-                     text="Expense Trends",
-                     font=("Roboto bold", 24),
-                     text_color="white")
-    title.grid(row=0, column=0, sticky="nsew", pady=5, columnspan=2)
-
-    m1 = CTkOptionMenu(sub, values=["Daily", "Weekly", "Monthly"],
-                        fg_color=dark_bg,
-                        button_color=dark_bg,
-                        button_hover_color=clr1,
-                        dropdown_hover_color=light_bg,
-                        corner_radius=6, height=28, width=100)
-    m1.grid(row = 1, column=0, sticky="nsew", pady=5, padx=10)
-
-    def get_range():
-        type = m1.get()
-        if type == "Daily":
-             return ['12-10-2024', '13-10-2024', '14-10-2024','15-10-2024','16-10-2024','17-10-2024','18-10-2024']
-        if type=="Weekly":
-            return ["01-07/10/24", "08-14/10/24", "15-21/10/24", "22-28/10/24"]
-        if type=="Monthly":
-            return [x+" 2024" for x in ["Jan", "Feb", "Oct", "Dec"]]
-
-    m2 = CTkOptionMenu(sub, values=get_range(),
-                        fg_color=dark_bg,
-                        button_color=dark_bg,
-                        button_hover_color=clr1,
-                        dropdown_hover_color=light_bg,
-                        corner_radius=6, height=28)
-    m2.grid(row = 1, column=1, sticky="nsew", pady=5, padx=10)
-
-    sub.grid_columnconfigure(0, weight=1)
-    sub.grid_columnconfigure(1, weight=1)
+    graph_sec = graph_section(sec, 'trends', title="Trends")
 
 def getHome(app):
     body = CTkFrame(app.win, fg_color="transparent", corner_radius=0)
