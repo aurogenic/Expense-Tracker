@@ -5,10 +5,10 @@ from PIL import Image
 from expenses import *
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.colors import to_rgb, to_hex
+import numpy as np
 from tkcalendar import Calendar
-
-UNIT = "$"
-LIMITS = [150, 1200.00, 4500.00]
+import constants as const
 
 today = datetime.now().date()
 expenses = load_expenses()
@@ -18,11 +18,9 @@ MONTHTOT = total(expenses_by_month(expenses))
 
 TOTALS = [TODAYTOT, WEEKTOT, MONTHTOT]
 
-
 validate_num = None
 validate_hrs = None
 validate_mins = None
-
 
 logo_img = CTkImage(Image.open("assets/logo.png"), size = (300, 50))
 config_logo_img = CTkImage(Image.open("assets/config.png"), size = (50, 50))
@@ -76,6 +74,7 @@ def refresh():
 
     TOTALS = [TODAYTOT, WEEKTOT, MONTHTOT]
 
+
 def format (n, i=4, exact=False):
     if not n:
         return '0.00'
@@ -94,10 +93,19 @@ def format (n, i=4, exact=False):
     n = n / 10**(mg * 3)
     return  sign + format(n, i-1) + suffices[mg]    
 
+def color_gradient(n, c1, c2):
+    c1_rgb = np.array(to_rgb(c1))
+    if c2:
+        c2_rgb = np.array(to_rgb(c2))
+        colors = [(1-t) * c1_rgb +t * c2_rgb for t in np.linspace(0, 1, n)]
+    else:
+        colors = [(1-t)*c1_rgb + t * np.array([1, 1, 1]) for t in np.linspace(0, 1, n)]
+    return [to_hex(color) for color in colors]
+
 def small_sec(master, i, span):
     sec = CTkFrame(master, width=270, fg_color=sec_bg, corner_radius=24)
-    sec.grid(row=1, column=i*2+1, sticky="nsew", pady=20)
-    r = (TOTALS[i] - LIMITS[i]) / LIMITS[i] * 100
+    sec.grid(row=1, column=i*2+1, sticky="nsew", pady=20, padx=10)
+    r = (TOTALS[i] - const.LIMITS[i]) / const.LIMITS[i] * 100
     left = CTkFrame(sec, fg_color="transparent", )
     right = CTkFrame(sec, fg_color="transparent", bg_color="transparent", corner_radius=24)
     left.pack(side="left", pady=10, padx=10)
@@ -110,12 +118,12 @@ def small_sec(master, i, span):
                     anchor="w"
                     )
     amnt = CTkLabel(left,
-                    text=UNIT + format(TOTALS[i], 6),
+                    text=const.UNIT + format(TOTALS[i], 6),
                     text_color="white",
                     font=("Roboto bold", 30))
     rate = CTkLabel(right,
                     text= format(r)+"%",
-                    text_color= "red" if r > 0 else "green",
+                    text_color= "red" if r > 0 else "#00FF00",
                     font=("Roboto bold", 30),
                     fg_color="transparent",
                     anchor='s',
@@ -123,7 +131,7 @@ def small_sec(master, i, span):
                     )
     limits = ["Daily limit: ", "Weekly limit: ", "Monthly limit: "]
     limit = CTkLabel(right,
-                     text= limits[i] + UNIT + format(LIMITS[i], 5),
+                     text= limits[i] + const.UNIT + format(const.LIMITS[i], 5),
                      font=("Roboto bold", 12),
                      text_color="white",
                      fg_color="transparent",
@@ -212,7 +220,6 @@ def add_expense_sec(master, app):
                     command = lambda: add())
     btn.grid(row=6, column=0, columnspan=2, sticky="nsew", pady=10, padx=5)
 
-
 class graph_section:
     def __init__(self, frame, mode="categories", title="Categories"):
         master = CTkFrame(frame,fg_color="transparent", corner_radius=24,)
@@ -233,7 +240,7 @@ class graph_section:
 
         master.grid_columnconfigure(0, weight=1)
 
-        self.type_picker = CTkOptionMenu(self.head, values=["Monthly", "Weekly", "Daily", "Range"], fg_color=dark_bg,
+        self.type_picker = CTkOptionMenu(self.head, values=["Monthly", "Weekly", "Daily", "Range", "Total"], fg_color=dark_bg,
                     button_color=dark_bg, button_hover_color=clr1, dropdown_hover_color=light_bg,
                 corner_radius=6, height=28, width=100, command=self.select_range)
         self.type_picker.grid(row=0, column=0, sticky="nsew", pady=10)
@@ -268,13 +275,16 @@ class graph_section:
             self.range_picker.tkraise()
         else:
             self.date_picker_btn.tkraise()
+        self.graph_func()
 
     def set_from_date(self, date_str):
         self.from_date = datetime.strptime(date_str, "%d-%m-%Y").date()
+        self.from_btn.configure(text=f"{date_str[:-4]}{date_str[-2:]}")
         self.graph_func()
 
     def set_to_date(self, date_str):
         self.to_date = datetime.strptime(date_str, "%d-%m-%Y").date()
+        self.to_btn.configure(text=f"{date_str[:-4]}{date_str[-2:]}")
         self.graph_func()
     
     def select_date(self, date_str):
@@ -315,21 +325,33 @@ class graph_section:
             case 'Range':
                 lbl = self.from_date.strftime("From: %b-%d-%Y   ") + self.to_date.strftime("To: %b-%d-%Y")
                 data = expenses_between_days(expenses, self.from_date, self.to_date)
-
+            case 'Total':
+                lbl = "Total expense"
+                data = expenses
         data = category_total(data)
         self.graph = CTkFrame(self.body, fg_color="transparent")
-        self.graph.grid(row=2, column=0, columnspan=2, padx=7, pady=7, sticky="NSEW")
+        self.graph.grid(row=2, column=0, columnspan=2, padx=0, pady=0, sticky="NEW")
         if(data):
-            fig = Figure(figsize = (3, 3), dpi=100, facecolor=sec_bg, layout="constrained")
+            fig = Figure(figsize = (3.2, 3), dpi=100, facecolor=sec_bg, layout="constrained")
             plot = fig.add_subplot(111)
             categories = data.keys()
-            amounts = data.values()
-            plot.pie(amounts, labels=categories, autopct='%1.1f%%', textprops={'color': 'White'} )
-            canvas = FigureCanvasTkAgg(fig, self.graph)
-            canvas.draw() 
-            canvas.get_tk_widget().pack(fill="both", expand=True)
+            amounts = list(data.values())
+            colors = color_gradient(len(amounts), light_bg, dark_bg)
+            colors = [y for _, y in sorted(zip(sorted(amounts), colors), key=lambda pair: amounts.index(pair[0]))]
+            
+            plot.pie(amounts, autopct='%1.1f%%', textprops={'color': 'White'}, colors = colors)
+            plot.legend(labels=categories, loc='lower left')
+            self.canvas = canvas = FigureCanvasTkAgg(fig, self.graph)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill='both', expand=True)
 
             canvas.get_tk_widget().bind("<Button-1>", lambda event: show_pie_chart(data, lbl))
+
+
+        canvas.get_tk_widget().bind("<Configure>", lambda event: self.on_resize(event))
+
+    def on_resize(self, event):
+        self.canvas.get_tk_widget().config(width=event.width, height=event.height)
 
     def bar(self):
         data = None
@@ -345,19 +367,20 @@ class graph_section:
                 labels = [f"Week {week}" for week in data.keys()]
             case 'Range':
                 data = timeperiod_total(expenses_between_days(expenses, self.from_date, self.to_date), 'Daily')
-                labels = [date.strftime("%Y-%m-%d") for date in data.keys()]
-
+                labels = [date.strftime("%d-%m") for date in data.keys()]
+            case 'Total':
+                data = timeperiod_total(expenses, 'Monthly')
+                labels = [f"{year}-{month:02d}" for year, month in data.keys()]
         self.graph = CTkFrame(self.body, fg_color="transparent")
         self.graph.grid(row=2, column=0, columnspan=2, padx=7, pady=7, sticky="NSEW")
         if(data):
-            fig = Figure(figsize = (3, 3), dpi=100, facecolor=sec_bg, layout="constrained")
-            plot = fig.add_subplot(111)
-            amounts = data.values()
-
-            plot.bar(labels, amounts, color=sec_bg)
+            fig = Figure(figsize = (3.2, 3), dpi=100, facecolor=sec_bg, layout="constrained")
+            plot = fig.add_subplot(111, facecolor=sec_bg)
+            amounts = list(data.values())
+            colors = color_gradient(len(amounts), light_bg, dark_bg)
+            colors = [y for _, y in sorted(zip(sorted(amounts), colors), key=lambda pair: amounts.index(pair[0]))]
+            plot.bar(labels, amounts, color=colors)
             plot.yaxis.axis_name = "Expenses"
-            # plot.ylabel('Expenses')
-            # plot.tight_layout()
 
             canvas = FigureCanvasTkAgg(fig, self.graph)
             canvas.draw() 
@@ -365,17 +388,15 @@ class graph_section:
 
             canvas.get_tk_widget().bind("<Button-1>", lambda event: show_bar_chart(data, self.type_picker.get()))
 
-
 def add_category_sec(master):
-    sec = CTkFrame(master, width=270, height=400, fg_color=sec_bg, corner_radius=24)
+    sec = CTkFrame(master, width=580, height=400, fg_color=sec_bg, corner_radius=24)
     sec.grid(row=3, column=3, sticky="nsew", padx=20, pady=20)
 
     graph_sec = graph_section(sec, 'categories', title="Categories")
 
-
 def add_trend_sec(master):
     
-    sec = CTkFrame(master, width=270, height=400, fg_color=sec_bg, corner_radius=24)
+    sec = CTkFrame(master, width=580, height=400, fg_color=sec_bg, corner_radius=24)
     sec.grid(row=3, column=5, sticky="nsew", padx=20, pady=20)
 
     graph_sec = graph_section(sec, 'trends', title="Trends")
@@ -386,34 +407,17 @@ def getHome(app):
     t_sec = small_sec(body, 0, "Today     ")
     w_sec = small_sec(body, 1, "This Week ")
     m_sec = small_sec(body, 2, "This Month")
-    for i in range(4):
-            empty =  CTkFrame(body, width=20, fg_color="transparent", height=0)
-            empty.grid(row=1, column=i*2, sticky="nsew", padx=10)
-    for i in range(3):
-            empty =  CTkFrame(body, height=5, fg_color="transparent", width=0)
-            empty.grid(row=i*2, column=0, sticky="nsew", padx=10)
 
     add_expense_sec(body, app)
-    
     add_category_sec(body)
-    
     add_trend_sec(body)
-
- 
     
-    body.grid_rowconfigure(0, weight=3)
+    body.grid_rowconfigure([0, 2, 4], weight=3, minsize=5)
     body.grid_rowconfigure(1, weight=1)
-    body.grid_rowconfigure(2, weight=3)
     body.grid_rowconfigure(3, weight=10)
-    body.grid_rowconfigure(4, weight=3)
-    body.grid_columnconfigure(2, weight=1)
-    body.grid_columnconfigure(4, weight=1)
-    body.grid_columnconfigure(1, weight=2)
-    body.grid_columnconfigure(3, weight=2)
-    body.grid_columnconfigure(5, weight=2)
+    body.grid_columnconfigure([0, 2, 4, 6], weight=1, minsize=20)
+    body.grid_columnconfigure([1, 3, 5], weight=2)
 
-
-    
     body.pack(fill="both", expand=True)
 
     return body

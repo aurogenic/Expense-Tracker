@@ -2,6 +2,7 @@ import sqlite3
 from datetime import datetime
 import csv
 import matplotlib.pyplot as plt
+import shutil
 from constants import *
 
 
@@ -120,7 +121,7 @@ def timeperiod_total(expenses, period="Weekly"):
 
         if period == "Weekly":
             key = date.isocalendar()[1]
-        elif period == "Monthly":
+        elif period == "Monthly" or period == "Total":
             key = (date.year, date.month)
         else:
             key = date.date()
@@ -130,12 +131,12 @@ def timeperiod_total(expenses, period="Weekly"):
 
 def show_bar_chart(data, period="Weekly"):
     if data:
-        if (period=="Daily"):
-            labels = [date.strftime("%Y-%m-%d") for date in data.keys()]
-        elif (period=="Weekly"):
+        if (period=="Weekly"):
             labels = [f"Week {week}" for week in data.keys()]
         elif period=="Monthly":
             labels = [f"{year}-{month:02d}" for year, month in data.keys()]
+        else:
+            labels = [date.strftime("%Y-%m-%d") for date in data.keys()]
         values = list(data.values())
 
 
@@ -161,5 +162,8 @@ def show_pie_chart(data=category_total(load_expenses()), title='Expenses'):
         plt.legend(loc='lower right')
         plt.show()
 
-create_table()
-exp = load_expenses()
+def import_data(filename):
+    shutil.copy(filename, 'expenses.db')
+
+def export_data(filename):
+    shutil.copy('expenses.db', filename)

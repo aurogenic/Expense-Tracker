@@ -12,8 +12,8 @@ class App:
         init(self.win)
 
         self.navbar = get_navbar(self)
-        self.body = getHome(self)
-
+        # self.body = getHome(self)
+        self.body = getConfigPage(self)
         self.win.minsize(1000, 550)
 
 
@@ -21,6 +21,7 @@ class App:
 
     def change(self, n=0):
         self.body.destroy()
+        refresh()
         match(n):
             case 1:
                 self.body = getListPage(self)
