@@ -6,11 +6,11 @@ import shutil
 from constants import *
 
 
-CATEGORIES = ["Others", "Food and Snacks", "Shopping and Clothing", "Medical and Healthcar", "Utilities", "Rent and Recharges", "Miscellaneous"]
+DB_FILENAME = 'expenses.db'
 
 
 def create_table():
-    conn = sqlite3.connect('expenses.db')
+    conn = sqlite3.connect(DB_FILENAME)
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS expenses (
@@ -29,7 +29,7 @@ def add_expense(title, category, amount, time, note):
 
     time = datetime.now().strftime('%Y-%m-%d') + "::" + time
 
-    conn = sqlite3.connect('expenses.db')
+    conn = sqlite3.connect(DB_FILENAME)
     cursor = conn.cursor()
     cursor.execute('INSERT INTO expenses (title, category, amount, time, note) VALUES (?, ?, ?, ?, ?)',
                    (title, category, amount, time, note))
@@ -38,7 +38,7 @@ def add_expense(title, category, amount, time, note):
     load_expenses()
 
 def load_expenses():
-    conn = sqlite3.connect('expenses.db')
+    conn = sqlite3.connect(DB_FILENAME)
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM expenses')
     expenses = cursor.fetchall()
@@ -48,9 +48,8 @@ def load_expenses():
         exp[4] = datetime.strptime(exp[4], '%Y-%m-%d::%I:%M %p')
     return expenses
 
-
 def delete_expense(id):
-    conn = sqlite3.connect('expenses.db')
+    conn = sqlite3.connect(DB_FILENAME)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM expenses WHERE id = ?', 
                    (str(id)))
@@ -59,7 +58,7 @@ def delete_expense(id):
 
 def update_expense(id, title, category, amount, note):
     
-    conn = sqlite3.connect('expenses.db')
+    conn = sqlite3.connect(DB_FILENAME)
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE expenses SET title = ?, category = ?, amount = ?, note = ? WHERE id = ?
@@ -67,17 +66,35 @@ def update_expense(id, title, category, amount, note):
     conn.commit()
     conn.close()
 
-def export_to_csv():
-    expenses = load_expenses()
-    with open('expenses.csv', mode='w', newline='') as file:
+def export_to_csv(filename):
+    conn = sqlite3.connect(DB_FILENAME)
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM expenses')
+    expenses = cursor.fetchall()
+    conn.close()
+
+    with open(filename, mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['ID', 'Title', 'Category', 'Amount', 'Date', 'Time', 'Note'])
+        writer.writerow(['id', 'title', 'category', 'amount', 'time', 'note'])
         writer.writerows(expenses)
 
+def import_from_csv(filename, overwrite=True):
+
+    conn = sqlite3.connect(DB_FILENAME)
+    cursor = conn.cursor()
+    if overwrite:
+        clear_data()
+    with open(filename, 'r') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            cursor.execute('INSERT INTO expenses (title, category, amount, time, note) VALUES (?, ?, ?, ?, ?)',
+                  [ *(list(row.values())[1:])])
+    conn.commit()
+    conn.close()
 
 def category_wise():
     try:
-        conn = sqlite3.connect('expenses.db')
+        conn = sqlite3.connect(DB_FILENAME)
         cursor = conn.cursor()
         cursor.execute('SELECT category, SUM(amount) FROM expenses GROUP BY category')
         results = cursor.fetchall()
@@ -150,7 +167,7 @@ def show_bar_chart(data, period="Weekly"):
     else:
         print("No data available for visualization.")
 
-def show_pie_chart(data=category_total(load_expenses()), title='Expenses'):
+def show_pie_chart(data, title):
     if(data):
         categories = data.keys()
         amounts = data.values()
@@ -163,7 +180,34 @@ def show_pie_chart(data=category_total(load_expenses()), title='Expenses'):
         plt.show()
 
 def import_data(filename):
-    shutil.copy(filename, 'expenses.db')
+    try:
+        if filename.endswith('.csv'):
+            import_from_csv(filename)
+        if filename.endswith('.db'):
+            shutil.copy(filename, DB_FILENAME)
+    except Exception as e:
+        print("Unsupported file type")
+
 
 def export_data(filename):
-    shutil.copy('expenses.db', filename)
+    try:
+        if filename.endswith('.csv'):
+            export_to_csv(filename)
+        if filename.endswith('.db'):
+            shutil.copy(DB_FILENAME, filename)
+    except Exception as e:
+        print("Unsupported file type")
+
+    
+
+def clear_data():
+    conn = sqlite3.connect(DB_FILENAME)
+    cursor = conn.cursor()
+    cursor.execute('DROP TABLE expenses')
+    conn.commit()
+    conn.close()
+    create_table()
+
+# export_to_csv('daata.csv')
+# import_from_csv('daata.csv')
+# print(load_expenses)

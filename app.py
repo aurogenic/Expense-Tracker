@@ -12,8 +12,7 @@ class App:
         init(self.win)
 
         self.navbar = get_navbar(self)
-        # self.body = getHome(self)
-        self.body = getConfigPage(self)
+        self.body = getHome(self)
         self.win.minsize(1000, 550)
 
 

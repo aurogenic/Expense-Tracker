@@ -4,7 +4,7 @@ from tkinter.filedialog import askopenfilename, asksaveasfilename
 from PIL import Image
 import home
 from constants import *
-from expenses import export_data,import_data, export_to_csv
+from expenses import export_data,import_data, export_to_csv, clear_data
 import constants as const
 
 def add_config_sec(master,  app):
@@ -116,7 +116,7 @@ def add_data_sec(master):
                     font=("Roboto bold", 20),
                     height=56,
                     hover_color="black",
-                    command = lambda: update())
+                    command = lambda: export_to_csv())
     tocsv_btn.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=15, padx=5)
 
     clear_btn = CTkButton(form, text="Clear Data",
@@ -126,7 +126,7 @@ def add_data_sec(master):
                     font=("Roboto bold", 20),
                     height=56,
                     hover_color="red",
-                    command = lambda: update())
+                    command = lambda: clear_data())
     clear_btn.grid(row=5, column=0, columnspan=2, sticky="nsew", pady=15, padx=5)
 
     form.grid_columnconfigure(0, weight=1)
@@ -153,3 +153,8 @@ def get_import_file():
 def export_file():
     filename = asksaveasfilename(defaultextension='.db', filetypes=[('database', '*.db'), ('csv', '*.csv')])
     export_data(filename)
+
+def export_to_csv():
+    filename = asksaveasfilename(defaultextension='.csv', filetypes=[ ('csv', '*.csv'), ('database', '*.db')])
+    export_data(filename)
+

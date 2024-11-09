@@ -11,7 +11,7 @@ UNITS = {
     'Euro': '€',
 }
 
-UNITS.keys()
+CATEGORIES = ["Others", "Food and Snacks", "Shopping and Clothing", "Medical and Healthcar", "Utilities", "Rent and Recharges", "Miscellaneous"]
 
 UNIT = '$'
 LIMITS = [1, 1, 1]
